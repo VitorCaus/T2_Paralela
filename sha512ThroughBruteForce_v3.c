@@ -16,6 +16,16 @@
 
 #define MPI_ASK_FOR_TASK 1
 #define MPI_KIll_WORKER 2
+
+/* caracteres permitidos */
+const char charset[] = "abcdefghijklmnopqrstuvwxyz";
+
+int charset_len;
+
+/* alvo */
+uint8_t target[64];
+
+int found = 0;
 typedef struct
 {
     uint64_t state[8];
@@ -175,15 +185,7 @@ void sha512_final(SHA512_CTX *ctx, uint8_t hash[])
 //     return 0;
 // }
 // -------------------------------
-/* caracteres permitidos */
-const char charset[] = "abcdefghijklmnopqrstuvwxyz";
 
-int charset_len;
-
-/* alvo */
-uint8_t target[64];
-
-int found = 0;
 
 void print_hash_hex(const uint8_t hash[64])
 {
@@ -340,13 +342,37 @@ int main(int argc, char *argv[])
         //------------------------------------
         // espera receber pedido para enviar tarefa
     }
-    else{// se trabalhador
-        //pede tarefa
+    else
+    { // se trabalhador
+        // pede tarefa
+        char *work = NULL;
+        while (1)
+        {
+            // pede trabalho
+            MPI_Send(NULL, 0, MPI_CHAR, 0, MPI_ASK_FOR_TASK, MPI_COMM_WORLD);
 
-        while(1){
+            // recebe trabalho
+            MPI_Recv(work, 0, MPI_CHAR, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            if (status.MPI_TAG == MPI_KIll_WORKER)
+            {
+                break;
+            }
 
+            for (int i = 0; i < charset_len; ++i)
+            {
+                int local_found = found;
+                if (local_found)
+                    continue;
+
+                char localBuffer[maxLen + 1];
+                localBuffer[0] = charset[i];
+
+                brute(localBuffer, 1, maxLen);
+            }
+
+            if (!found)
+                printf("Nada encontrado.\n");
         }
-
     }
     // if (argc > 1)
     // {
