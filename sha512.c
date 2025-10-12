@@ -15,7 +15,10 @@
 #define SSIG1(x) (ROTR(x, 19) ^ ROTR(x, 61) ^ SHR(x, 6))
 
 #define MPI_ASK_FOR_TASK 1
-#define MPI_KIll_WORKER 2
+#define MPI_KILL_WORKER 2
+
+#define MAX_HASHES 128
+#define MAX_WORD_LEN 128
 
 /* caracteres permitidos */
 const char charset[] = "abcdefghijklmnopqrstuvwxyz";
@@ -25,7 +28,6 @@ int charset_len;
 /* alvo */
 uint8_t target[64];
 
-int found = 0;
 typedef struct
 {
     uint64_t state[8];
@@ -186,7 +188,6 @@ void sha512_final(SHA512_CTX *ctx, uint8_t hash[])
 // }
 // -------------------------------
 
-
 void print_hash_hex(const uint8_t hash[64])
 {
     for (int i = 0; i < 64; ++i)
@@ -202,11 +203,8 @@ void sha512_string(const char *msg, uint8_t hash[64])
     sha512_final(&ctx, hash);
 }
 
-void brute(char *buffer, int depth, int maxDepth)
+int brute(char *buffer, int depth, int maxDepth)
 {
-    if (found)
-        return;
-
     if (depth == maxDepth)
     {
         buffer[depth] = '\0';
@@ -214,27 +212,22 @@ void brute(char *buffer, int depth, int maxDepth)
         sha512_string(buffer, hash);
         if (memcmp(hash, target, 64) == 0)
         {
-            {
-                if (!found)
-                {
-                    printf("Achou: %s\n", buffer);
-                    found = 1;
-                }
-            }
+            // printf("Achou: %s\n", buffer);
+            return 1; // encontrou
         }
-        return;
+        return 0;
     }
 
     for (int i = 0; i < charset_len; ++i)
     {
-        int local_found = found;
-        if (local_found)
-            break;
-
         buffer[depth] = charset[i];
-        brute(buffer, depth + 1, maxDepth);
+        if (brute(buffer, depth + 1, maxDepth))
+            return 1; // interrompe recursão ao encontrar
     }
+
+    return 0;
 }
+
 
 void generate_and_test(int length)
 {
@@ -258,15 +251,21 @@ void generate_and_test(int length)
         sha512_string(buffer, hash);
         if (memcmp(hash, target, 64) == 0)
         {
-            printf("Achou: %s\n", buffer);
+            // printf("Achou: %s\n", buffer);
             return;
         }
     }
 }
 
+/*
+    TODO:
+    - enviar para o trabalhador o hash a ser quebrado e o tamanho da palavra alvo
+    - TRABALHADOR DEVE PEDIR TRABALHO AO COORDENADOR
+*/
+
+
 int main(int argc, char *argv[])
 {
-    double starttime, stoptime;
     int my_rank, proc_n;
     MPI_Status status;
 
@@ -274,138 +273,156 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &proc_n);
 
+    charset_len = strlen(charset);
+
     if (my_rank == 0)
-    { // se coordenador
+    { // ------------------ COORDENADOR ------------------
+        double coord_start_time, coord_stop_time;
+        coord_start_time = MPI_Wtime();
 
-        //------------------------------------
-        // lendo um hash do arquivo
-        const char *target_hex;
-        char target_hex_buf[129];
         FILE *hf = fopen("hash.txt", "r");
-        if (!hf)
+        FILE *tf = fopen("texto.txt", "r");
+        if (!hf || !tf)
         {
-            fprintf(stderr, "Erro: nao foi possivel abrir hash.txt\n");
-            return 1;
+            fprintf(stderr, "Erro: nao foi possivel abrir hash.txt ou texto.txt\n");
+            MPI_Abort(MPI_COMM_WORLD, 1);
         }
-        char line[512];
-        if (!fgets(line, sizeof(line), hf))
-        {
-            fprintf(stderr, "Erro: hash.txt vazio\n");
-            fclose(hf);
-            return 1;
-        }
-        fclose(hf);
 
-        /* keep only hex digits */
-        int j = 0;
-        for (int i = 0; line[i] && j < 128; ++i)
+        uint8_t target_list[MAX_HASHES][64];
+        char word_list[MAX_HASHES][MAX_WORD_LEN];
+        int num_hashes = 0;
+
+        char hash_line[256];
+        char word_line[256];
+
+        while (fgets(hash_line, sizeof(hash_line), hf) && fgets(word_line, sizeof(word_line), tf))
         {
-            char c = line[i];
-            if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
+            // limpar newline
+            word_line[strcspn(word_line, "\r\n")] = '\0';
+
+            // extrair apenas hex válidos
+            char hexbuf[129];
+            int j = 0;
+            for (int i = 0; hash_line[i] && j < 128; ++i)
             {
-                target_hex_buf[j++] = c;
+                char c = hash_line[i];
+                if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
+                    hexbuf[j++] = c;
+            }
+            hexbuf[j] = '\0';
+
+            if (j != 128)
+            {
+                fprintf(stderr, "Ignorando linha %d: hash inválido (%d chars)\n", num_hashes + 1, j);
+                continue;
+            }
+
+            for (int k = 0; k < 64; ++k)
+                sscanf(hexbuf + k * 2, "%2hhx", &target_list[num_hashes][k]);
+
+            strncpy(word_list[num_hashes], word_line, MAX_WORD_LEN - 1);
+            word_list[num_hashes][MAX_WORD_LEN - 1] = '\0';
+
+            num_hashes++;
+            if (num_hashes >= MAX_HASHES)
+                break;
+        }
+
+        fclose(hf);
+        fclose(tf);
+
+        if (num_hashes == 0)
+        {
+            fprintf(stderr, "Nenhum par hash/palavra válido encontrado.\n");
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+
+        // printf("[Master] Lidos %d pares de hash/palavra.\n", num_hashes);
+
+        // --- distribuição de tarefas ---
+        int next_hash = 0;
+        int active_workers = proc_n - 1;
+
+        while (active_workers > 0)
+        {
+            MPI_Recv(NULL, 0, MPI_CHAR, MPI_ANY_SOURCE, MPI_ASK_FOR_TASK, MPI_COMM_WORLD, &status);
+            int worker = status.MPI_SOURCE;
+
+            if (next_hash < num_hashes)
+            {
+                struct
+                {
+                    uint8_t hash[64];
+                    char word[MAX_WORD_LEN];
+                } task_data;
+
+                memcpy(task_data.hash, target_list[next_hash], 64);
+                strncpy(task_data.word, word_list[next_hash], MAX_WORD_LEN);
+
+                MPI_Send(&task_data, sizeof(task_data), MPI_BYTE, worker, 0, MPI_COMM_WORLD);
+
+                printf("[Master] Enviando tarefa %d (%s) para worker %d\n",
+                       next_hash + 1, word_list[next_hash], worker);
+
+                next_hash++;
+            }
+            else
+            {
+                MPI_Send(NULL, 0, MPI_CHAR, worker, MPI_KILL_WORKER, MPI_COMM_WORLD);
+                active_workers--;
             }
         }
-        target_hex_buf[j] = '\0';
 
-        if (j != 128)
-        {
-            fprintf(stderr, "Erro: hash.txt deve conter 128 caracteres hex (SHA-512), encontrado: %d\n", j);
-            return 1;
-        }
-        printf("Hash lido: %s\n", target_hex_buf);
-
-        target_hex = target_hex_buf;
-        for (int i = 0; i < 64; ++i)
-            sscanf(target_hex + i * 2, "%2hhx", &target[i]);
-
-        charset_len = strlen(charset);
-
-        int maxLen = 0;
-        FILE *tf = fopen("texto.txt", "r");
-        if (!tf)
-        {
-            fprintf(stderr, "Erro: nao foi possivel abrir texto.txt\n");
-            return 1;
-        }
-        char wordbuf[1024];
-        if (fscanf(tf, "%1023s", wordbuf) != 1)
-        {
-            fprintf(stderr, "Erro: texto.txt vazio ou sem palavra\n");
-            fclose(tf);
-            return 1;
-        }
-        fclose(tf);
-        maxLen = (int)strlen(wordbuf);
-        printf("Comprimento lido de texto.txt: %d\n", maxLen);
-
-        //------------------------------------
-        // espera receber pedido para enviar tarefa
+        coord_stop_time = MPI_Wtime();
+        printf("[Final] Tempo total de execucao do coordenador: %3.2f segundos\n", coord_stop_time - coord_start_time);
     }
     else
-    { // se trabalhador
-        // pede tarefa
-        char *work = NULL;
+    { // ------------------ WORKER ------------------
         while (1)
         {
-            // pede trabalho
+            double local_worker_start_time, local_worker_stop_time = 0.0;
+            local_worker_start_time = MPI_Wtime();
+
+            // pede tarefa
             MPI_Send(NULL, 0, MPI_CHAR, 0, MPI_ASK_FOR_TASK, MPI_COMM_WORLD);
 
-            // recebe trabalho
-            MPI_Recv(work, 0, MPI_CHAR, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-            if (status.MPI_TAG == MPI_KIll_WORKER)
+            struct
             {
+                uint8_t hash[64];
+                char word[MAX_WORD_LEN];
+            } task_data;
+
+            MPI_Recv(&task_data, sizeof(task_data), MPI_BYTE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+
+            if (status.MPI_TAG == MPI_KILL_WORKER)
                 break;
-            }
 
-            for (int i = 0; i < charset_len; ++i)
+            memcpy(target, task_data.hash, 64);
+
+            int maxLen = strlen(task_data.word);
+
+            printf("[Worker %d] Recebeu tarefa com alvo \"%s\" (len=%d)\n",
+                   my_rank, task_data.word, maxLen);
+
+            // faz brute force para esse alvo
+            int local_found = 0;
+            for (int i = 0; i < charset_len && !local_found; ++i)
             {
-                int local_found = found;
-                if (local_found)
-                    continue;
-
-                char localBuffer[maxLen + 1];
+                char localBuffer[MAX_WORD_LEN];
                 localBuffer[0] = charset[i];
-
-                brute(localBuffer, 1, maxLen);
+                if (brute(localBuffer, 1, maxLen))
+                    local_found = 1;
             }
 
-            if (!found)
-                printf("Nada encontrado.\n");
+            local_worker_stop_time = MPI_Wtime();
+
+            if (!local_found)
+                printf("[Worker %d] Nada encontrado <%s> -> %f segundos.\n", my_rank, task_data.word, local_worker_stop_time - local_worker_start_time);
+            else
+                printf("[Worker %d] Palavra <%s> encontrada em %f segundos!\n", my_rank, task_data.word, local_worker_stop_time - local_worker_start_time);
         }
     }
-    // if (argc > 1)
-    // {
-    //     char *end;
-    //     int t = strtol(argv[1], &end, 10);
-    //     if (*end != '\0' || t <= 0)
-    //     {
-    //         fprintf(stderr, "Uso: %s [num_threads]\n", argv[0]);
-    //         return 1;
-    //     }
-    //     threads = (int)t;
-    // }
 
-    /* coloca seu hash alvo aqui */
-    /* read hex hash from hash.txt (expects 128 hex chars for SHA-512) */
-
-    // ------------------------------------
-
-    for (int i = 0; i < charset_len; ++i)
-    {
-        int local_found = found;
-        if (local_found)
-            continue;
-
-        char localBuffer[maxLen + 1];
-        localBuffer[0] = charset[i];
-
-        brute(localBuffer, 1, maxLen);
-    }
-
-    if (!found)
-        printf("Nada encontrado.\n");
-
-    printf("Tempo de execucao: %3.2f segundos\n", stoptime - starttime);
+    MPI_Finalize();
     return 0;
 }

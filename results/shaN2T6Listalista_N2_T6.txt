@@ -1,0 +1,15 @@
+make[1]: Entering directory '/home/cp14/T2ComParalela'
+ladcomp -env mpicc sha512.c -o sha512
+mpicc sha512.c -o sha512
+srun -N 2 -n 6 --exclusive ./sha512
+[Worker 4] Recebeu tarefa com alvo "ugabu" (len=5)
+[Worker 4] Palavra <ugabu> encontrada em 24.420539 segundos!
+[Worker 2] Recebeu tarefa com alvo "abaeba" (len=6)
+[Worker 2] Palavra <abaeba> encontrada em 1.218238 segundos!
+[Master] Enviando tarefa 1 (abaeba) para worker 2
+[Master] Enviando tarefa 2 (teste) para worker 1
+[Master] Enviando tarefa 3 (ugabu) para worker 4
+[Final] Tempo total de execucao do coordenador: 27.39 segundos
+[Worker 1] Recebeu tarefa com alvo "teste" (len=5)
+[Worker 1] Palavra <teste> encontrada em 27.389269 segundos!
+make[1]: Leaving directory '/home/cp14/T2ComParalela'

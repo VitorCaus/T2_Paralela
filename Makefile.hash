@@ -1,0 +1,19 @@
+# ====== VARIÁVEIS ======
+# Pode ser sobrescrito via linha de comando: make -f Makefile.hash LISTA=arquivo.txt OUTPUT=arquivo_hash.txt
+LISTA ?= texto.txt
+OUTPUT ?= hash.txt
+
+# ====== REGRAS ======
+all: $(OUTPUT)
+
+# Geração de hash.txt a partir de texto.txt
+$(OUTPUT): $(LISTA)
+        @echo "Gerando hashes SHA-512 de $(LISTA) em $(OUTPUT)..."
+        @rm -f $(OUTPUT)
+        @while IFS= read -r palavra; do \
+                echo -n "$$palavra" | sha512sum | awk '{print $$1}' >> $(OUTPUT); \
+        done < $(LISTA)
+        @echo "Concluído! Arquivo $(OUTPUT) criado."
+
+clean:
+        rm -f $(OUTPUT)
