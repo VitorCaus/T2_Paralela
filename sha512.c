@@ -1,7 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-// #include <omp.h>
 #include "mpi.h"
 
 #define ROTR(x, n) (((x) >> (n)) | ((x) << (64 - (n))))
@@ -171,21 +170,7 @@ void sha512_final(SHA512_CTX *ctx, uint8_t hash[])
     }
 }
 
-// int main() {
-//     const char *msg = "abc";
-//     uint8_t hash[64];
-//     SHA512_CTX ctx;
 
-//     sha512_init(&ctx);
-//     sha512_update(&ctx, (const uint8_t*)msg, strlen(msg));
-//     sha512_final(&ctx, hash);
-
-//     printf("SHA512(\"%s\") = ", msg);
-//     for (int i=0; i<64; ++i) printf("%02x", hash[i]);
-//     printf("\n");
-
-//     return 0;
-// }
 // -------------------------------
 
 void print_hash_hex(const uint8_t hash[64])
@@ -196,7 +181,6 @@ void print_hash_hex(const uint8_t hash[64])
 }
 void sha512_string(const char *msg, uint8_t hash[64])
 {
-    //      printf("%s\n",msg);
     SHA512_CTX ctx;
     sha512_init(&ctx);
     sha512_update(&ctx, (const uint8_t *)msg, strlen(msg));
@@ -212,7 +196,6 @@ int brute(char *buffer, int depth, int maxDepth)
         sha512_string(buffer, hash);
         if (memcmp(hash, target, 64) == 0)
         {
-            // printf("Achou: %s\n", buffer);
             return 1; // encontrou
         }
         return 0;
@@ -251,7 +234,6 @@ void generate_and_test(int length)
         sha512_string(buffer, hash);
         if (memcmp(hash, target, 64) == 0)
         {
-            // printf("Achou: %s\n", buffer);
             return;
         }
     }
@@ -274,6 +256,66 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &proc_n);
 
     charset_len = strlen(charset);
+
+    // ==========================
+    //     MODO SEQUENCIAL
+    // ==========================
+    if (proc_n == 1)
+    {
+        double start_time, end_time;
+        start_time = MPI_Wtime();
+
+        FILE *hf = fopen("hash.txt", "r");
+        FILE *tf = fopen("texto.txt", "r");
+        if (!hf || !tf)
+        {
+            fprintf(stderr, "Erro: nao foi possivel abrir hash.txt ou texto.txt\n");
+            MPI_Finalize();
+            return 1;
+        }
+
+        uint8_t target_local[64];
+        char hash_line[256];
+        char word_line[256];
+
+        while (fgets(hash_line, sizeof(hash_line), hf) && fgets(word_line, sizeof(word_line), tf))
+        {
+            word_line[strcspn(word_line, "\r\n")] = '\0';
+
+            // converte hash hex -> bytes
+            for (int k = 0; k < 64; ++k)
+                sscanf(hash_line + k * 2, "%2hhx", &target_local[k]);
+
+            memcpy(target, target_local, 64);
+            int maxLen = strlen(word_line);
+
+            double start = MPI_Wtime();
+            int found = 0;
+            for (int i = 0; i < charset_len && !found; ++i)
+            {
+                char localBuffer[MAX_WORD_LEN];
+                localBuffer[0] = charset[i];
+                if (brute(localBuffer, 1, maxLen))
+                    found = 1;
+            }
+            double end = MPI_Wtime();
+
+            if (!found)
+                printf("[SEQ] Nada encontrado <%s> -> %f segundos.\n", word_line, end - start);
+            // printf("[SEQ] Palavra <%s> encontrada em %f segundos!\n", word_line, end - start);
+        }
+
+        fclose(hf);
+        fclose(tf);
+        end_time = MPI_Wtime();
+        printf("[FINAL] Tempo total de execucao: %3.2f segundos\n", end_time - start_time);
+        MPI_Finalize();
+        return 0;
+    }
+
+    // ==========================
+    //     MODO MPI
+    // ==========================
 
     if (my_rank == 0)
     { // ------------------ COORDENADOR ------------------
@@ -337,7 +379,6 @@ int main(int argc, char *argv[])
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
 
-        // printf("[Master] Lidos %d pares de hash/palavra.\n", num_hashes);
 
         // --- distribuição de tarefas ---
         int next_hash = 0;
@@ -361,8 +402,8 @@ int main(int argc, char *argv[])
 
                 MPI_Send(&task_data, sizeof(task_data), MPI_BYTE, worker, 0, MPI_COMM_WORLD);
 
-                printf("[Master] Enviando tarefa %d (%s) para worker %d\n",
-                       next_hash + 1, word_list[next_hash], worker);
+                // printf("[Master] Enviando tarefa %d (%s) para worker %d\n",
+                    //    next_hash + 1, word_list[next_hash], worker);
 
                 next_hash++;
             }
@@ -401,8 +442,8 @@ int main(int argc, char *argv[])
 
             int maxLen = strlen(task_data.word);
 
-            printf("[Worker %d] Recebeu tarefa com alvo \"%s\" (len=%d)\n",
-                   my_rank, task_data.word, maxLen);
+            // printf("[Worker %d] Recebeu tarefa com alvo \"%s\" (len=%d)\n",
+                //    my_rank, task_data.word, maxLen);
 
             // faz brute force para esse alvo
             int local_found = 0;

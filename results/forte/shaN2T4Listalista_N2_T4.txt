@@ -1,0 +1,70 @@
+make[1]: Entering directory '/home/cp14/T2ComParalela'
+ladcomp -env mpicc sha512.c -o sha512
+mpicc sha512.c -o sha512
+srun -N 2 -n 4 --exclusive ./sha512
+[Worker 3] Palavra <rhwvf> encontrada em 20.711259 segundos!
+[Worker 3] Palavra <phhe> encontrada em 0.701595 segundos!
+[Worker 3] Palavra <rxgak> encontrada em 21.400939 segundos!
+[Worker 3] Palavra <npgiz> encontrada em 16.245813 segundos!
+[Worker 3] Palavra <crhf> encontrada em 0.122454 segundos!
+[Worker 3] Palavra <mwzll> encontrada em 15.413388 segundos!
+[Worker 3] Palavra <rtrq> encontrada em 0.814345 segundos!
+[Worker 3] Palavra <tgrdc> encontrada em 23.025362 segundos!
+[Worker 3] Palavra <tjxk> encontrada em 0.888820 segundos!
+[Worker 3] Palavra <tgke> encontrada em 0.882484 segundos!
+[Worker 3] Palavra <cexs> encontrada em 0.100870 segundos!
+[Worker 3] Palavra <gxmpz> encontrada em 8.257181 segundos!
+[Worker 3] Palavra <nlnw> encontrada em 0.616990 segundos!
+[Worker 3] Palavra <itcz> encontrada em 0.401877 segundos!
+[Worker 3] Palavra <lzgfq> encontrada em 14.320255 segundos!
+[Worker 3] Palavra <tupb> encontrada em 0.907927 segundos!
+[Worker 3] Palavra <pboj> encontrada em 0.691298 segundos!
+[Worker 1] Palavra <mtng> encontrada em 0.589872 segundos!
+[Worker 1] Palavra <vfncr> encontrada em 25.357159 segundos!
+[Worker 1] Palavra <nsxak> encontrada em 16.415378 segundos!
+[Worker 1] Palavra <rptce> encontrada em 21.044715 segundos!
+[Worker 1] Palavra <gfkx> encontrada em 0.284773 segundos!
+[Worker 1] Palavra <xqvpt> encontrada em 28.262313 segundos!
+[Worker 1] Palavra <grnt> encontrada em 0.306259 segundos!
+[Worker 1] Palavra <jnbb> encontrada em 0.435877 segundos!
+[Worker 1] Palavra <qxxzi> encontrada em 20.225769 segundos!
+[Worker 1] Palavra <wccv> encontrada em 1.014080 segundos!
+[Worker 1] Palavra <zpfvv> encontrada em 30.592134 segundos!
+[Worker 1] Palavra <cdtz> encontrada em 0.098739 segundos!
+[Worker 1] Palavra <zvmh> encontrada em 1.186427 segundos!
+[Worker 1] Palavra <mcqt> encontrada em 0.555119 segundos!
+[Worker 1] Palavra <iqzp> encontrada em 0.396942 segundos!
+[Worker 1] Palavra <dqxv> encontrada em 0.167526 segundos!
+[Worker 1] Palavra <cdck> encontrada em 0.097258 segundos!
+[Worker 3] Palavra <eafn> encontrada em 0.184477 segundos!
+[Worker 3] Palavra <cdkp> encontrada em 0.098161 segundos!
+[Worker 3] Palavra <pmpwe> encontrada em 18.527678 segundos!
+[Worker 3] Palavra <tmze> encontrada em 0.894566 segundos!
+[Worker 3] Palavra <lcbn> encontrada em 0.509448 segundos!
+[Worker 3] Palavra <xehwn> encontrada em 27.716780 segundos!
+[Worker 1] Palavra <roib> encontrada em 0.805114 segundos!
+[Worker 1] Palavra <qhiw> encontrada em 0.747200 segundos!
+[Final] Tempo total de execucao do coordenador: 176.37 segundos
+[Worker 2] Palavra <csqg> encontrada em 0.142379 segundos!
+[Worker 2] Palavra <eqov> encontrada em 0.215157 segundos!
+[Worker 2] Palavra <xseeg> encontrada em 28.416351 segundos!
+[Worker 2] Palavra <lryb> encontrada em 0.538342 segundos!
+[Worker 2] Palavra <xehfd> encontrada em 27.775126 segundos!
+[Worker 2] Palavra <uqen> encontrada em 0.950474 segundos!
+[Worker 2] Palavra <vcvgb> encontrada em 25.324272 segundos!
+[Worker 2] Palavra <vytuv> encontrada em 26.327241 segundos!
+[Worker 2] Palavra <rdzy> encontrada em 0.789415 segundos!
+[Worker 2] Palavra <fgus> encontrada em 0.242502 segundos!
+[Worker 2] Palavra <yjsj> encontrada em 1.120085 segundos!
+[Worker 2] Palavra <yapb> encontrada em 1.107088 segundos!
+[Worker 2] Palavra <obgh> encontrada em 0.644842 segundos!
+[Worker 2] Palavra <tbzzk> encontrada em 22.868756 segundos!
+[Worker 2] Palavra <fqlq> encontrada em 0.258661 segundos!
+[Worker 2] Palavra <gucv> encontrada em 0.310870 segundos!
+[Worker 2] Palavra <nmpy> encontrada em 0.622656 segundos!
+[Worker 2] Palavra <flrxb> encontrada em 6.540689 segundos!
+[Worker 2] Palavra <qrfr> encontrada em 0.767020 segundos!
+[Worker 2] Palavra <bubzs> encontrada em 2.120343 segundos!
+[Worker 2] Palavra <vswo> encontrada em 1.000036 segundos!
+[Worker 2] Palavra <xlzcb> encontrada em 28.287793 segundos!
+make[1]: Leaving directory '/home/cp14/T2ComParalela'

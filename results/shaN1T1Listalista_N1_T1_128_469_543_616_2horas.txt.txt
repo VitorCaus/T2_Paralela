@@ -1,0 +1,6 @@
+make[1]: Entering directory '/home/cp14/T2ComParalela'
+ladcomp -env mpicc sha512.c -o sha512
+mpicc sha512.c -o sha512
+srun -N 1 -n 1 --exclusive ./sha512
+[FINAL] Tempo total de execucao: 7345.87 segundos
+make[1]: Leaving directory '/home/cp14/T2ComParalela'
