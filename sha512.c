@@ -16,9 +16,10 @@
 #define MPI_ASK_FOR_TASK 1
 #define MPI_KILL_WORKER 2
 
-#define MAX_HASHES 128
-#define MAX_WORD_LEN 128
+#define MAX_HASHES 1056
+#define MAX_WORD_LEN 16
 
+// int contaTeste = 0;
 /* caracteres permitidos */
 const char charset[] = "abcdefghijklmnopqrstuvwxyz";
 
@@ -388,6 +389,7 @@ int main(int argc, char *argv[])
         {
             MPI_Recv(NULL, 0, MPI_CHAR, MPI_ANY_SOURCE, MPI_ASK_FOR_TASK, MPI_COMM_WORLD, &status);
             int worker = status.MPI_SOURCE;
+            //printf("[Master - C%d] Recebeu pedido de tarefa do worker %d (total pedidos)", contaTeste++, worker);
 
             if (next_hash < num_hashes)
             {
@@ -426,7 +428,7 @@ int main(int argc, char *argv[])
 
             // pede tarefa
             MPI_Send(NULL, 0, MPI_CHAR, 0, MPI_ASK_FOR_TASK, MPI_COMM_WORLD);
-
+            // printf("[Worker %d - C%d] Pedido de tarefa enviado \n", my_rank, contaTeste++);
             struct
             {
                 uint8_t hash[64];
